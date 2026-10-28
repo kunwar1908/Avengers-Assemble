@@ -1,0 +1,44 @@
+# Gradle
+.gradle/
+**/.gradle/
+build/
+**/build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Java build output
+*.class
+*.jar
+*.war
+*.ear
+out/
+bin/
+
+# Runtime-generated game data
+scores.txt
+**/scores.txt
+jme-scores.txt
+**/jme-scores.txt
+
+# IDE metadata
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+# Operating-system files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
+hs_err_pid*
+

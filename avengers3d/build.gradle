@@ -1,0 +1,42 @@
+import org.gradle.internal.os.OperatingSystem
+
+plugins {
+    id 'application'
+}
+
+repositories { mavenCentral() }
+
+def lwjglVersion = '3.3.4'
+def jomlVersion  = '1.10.6'
+
+// Pick the native LWJGL binaries for the OS/CPU we are running on.
+def os   = OperatingSystem.current()
+def arch = System.getProperty('os.arch')
+def lwjglNatives
+if (os.isLinux())        lwjglNatives = arch.startsWith('aarch64') ? 'natives-linux-arm64' : 'natives-linux'
+else if (os.isMacOsX())  lwjglNatives = arch.startsWith('aarch64') ? 'natives-macos-arm64' : 'natives-macos'
+else                     lwjglNatives = 'natives-windows'
+
+dependencies {
+    implementation platform("org.lwjgl:lwjgl-bom:$lwjglVersion")
+    ['lwjgl', 'lwjgl-glfw', 'lwjgl-opengl', 'lwjgl-openal', 'lwjgl-stb'].each {
+        implementation "org.lwjgl:$it"
+        runtimeOnly    "org.lwjgl:$it::$lwjglNatives"
+    }
+    implementation "org.joml:joml:$jomlVersion"
+    // FBX support later: implementation "org.lwjgl:lwjgl-assimp" + its natives
+}
+
+java {
+    toolchain { languageVersion = JavaLanguageVersion.of(17) }
+}
+
+application {
+    mainClass = 'com.avengers3d.Main'
+    def jvm = ['-Xms512m', '-Xmx1g', '-XX:+UseZGC']
+    if (os.isMacOsX()) jvm << '-XstartOnFirstThread'      // GLFW must own the main thread on macOS
+    applicationDefaultJvmArgs = jvm
+}
+
+// scores.txt is written to the working directory
+tasks.named('run') { workingDir = rootProject.projectDir }
