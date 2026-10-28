@@ -1,51 +1,58 @@
-# Marvel Avengers 3D - playable arcade prototype (Java 17+, LWJGL 3.3, JOML)
+# Avengers 3D Java game
 
-Survive endless waves of Hydra soldiers and drones as **Hulk** or **Iron Man**.
-Everything is procedural (primitive meshes, generated textures, synthesized sound), so there are no asset files.
+This directory contains the Gradle application for the Avengers 3D
+procedural arcade prototype. The repository-level documentation is available
+at `../README.md`; this file provides the project-specific run instructions.
+
+## Requirements
+
+- JDK 17 or newer
+- Gradle 8 or newer
+- OpenGL 3.3-compatible graphics support
 
 ## Run
-    gradle run            # Gradle 8+, JDK 17+, internet for the first dependency download
-(macOS: the build already passes -XstartOnFirstThread. IDE users: add that VM option manually.)
+
+From this directory:
+
+```powershell
+gradle run
+```
+
+Compile without starting the game:
+
+```powershell
+gradle compileJava
+```
+
+The game stores named top-five scores in `scores.txt`. Runtime score data is
+ignored by Git.
 
 ## Controls
-| Action | Key |
+
+| Action | Control |
 |---|---|
-| Move / look | WASD / mouse |
-| Jump (Iron Man: jump or ascend while flying) | Space |
-| Attack | Left mouse or J |
-| Hulk ground pound (in the air) | Left Ctrl |
-| Iron Man flight on/off, descend | F, Left Shift |
-| 1st / 3rd person, zoom | V, scroll |
-| Pause / menu quit | Esc / Q |
+| Enter player name | Type on the main menu |
+| Delete name characters | `Backspace` |
+| Choose Hulk / Iron Man | `1` / `2` |
+| Move / look | `WASD` / mouse |
+| Attack | Left mouse button or `J` |
+| Jump | `Space` |
+| Hulk ground pound | `Left Ctrl` while airborne |
+| Iron Man flight | `F` |
+| Iron Man descend | `Left Shift` while flying |
+| Camera mode / zoom | `V` / mouse wheel |
+| Pause | `Esc` |
+| Quit to menu | `Q` while paused |
 
-## Features
-- Menu, play, pause, game-over state machine; top-5 scoreboard saved in `scores.txt`
-- Waves with scaling difficulty, clear bonus + healing, two enemy types (ground soldier, hovering drone)
-- HUD: score, wave, enemies left, health bar, crosshair, damage flash, wave banner
-- Hulk: smash (sphere-vs-AABB), double jump, ground-pound shockwave. Iron Man: flight (gravity off), repulsor bolts aimed with a camera raycast
-- Procedural sound effects and looping music through OpenAL; game still runs if no audio device exists
-- Manual 3D physics: gravity, jumping, AABB/sphere overlap, minimum-translation resolution, raycasts
+## Main packages
 
-## Layout (dependencies point downward)
-    game/    GameApp (window, states, HUD, input mapping), World (rules, waves, combat), Enemy, Projectile, Block, ScoreBoard, MeshFactory
-    scene/   Transform, GameObject3D (+ Parts), Character3D, Hulk, IronMan
-    physics/ AABB, BoundingSphere, Physics3D
-    render/  Camera3D, ShaderProgram, Mesh, Renderer, UIRenderer, Textures
-    audio/   AudioManager (OpenAL), Synth
-    assets/  AssetManager, ObjParser  (async OBJ + texture streaming, ready for real models)
-    core/    GameLoop (fixed 60 Hz), Window, Input
+- `game`: game state, world simulation, enemies, combat, and scoreboard
+- `scene`: transforms, game objects, Hulk, and Iron Man
+- `render`: OpenGL renderer, camera, shaders, meshes, and HUD
+- `physics`: collision and raycast helpers
+- `audio`: OpenAL and procedural sound
+- `core`: window, input, and fixed-step loop
+- `assets`: procedural/OBJ asset loading helpers
 
-## Matrix pipeline
-    clip = Projection * View * Model * vec4(localPos, 1)
-    Model = T*R*S, per part: ObjectModel * T(offset) * S(size)
-
-## GC rules
-Hot paths (update/render) reuse scratch vectors/matrices and indexed loops; meshes and UI batches live off-heap.
-Allocation happens only at spawn time (a handful of enemies per wave).
-
-## Known simplifications / next steps
-- Characters are box-and-sphere figures: swap in OBJ models via `AssetManager`, then add skeletal animation (FBX via lwjgl-assimp)
-- Enemy AI walks straight at the player (no pathfinding); render transforms are not interpolated between physics steps
-- No shadows, particles, skybox or gamepad support
-- Marvel names/likenesses are trademarked: use original or licensed art/audio if you publish
-- This code was written without being compiled in this environment: expect to fix small API/typo issues on first build
+See the repository [README](../README.md) for the complete feature list,
+project layout, troubleshooting guidance, and legal note.
