@@ -1,8 +1,8 @@
 # Avengers 3D
 
 Avengers 3D is a Java 3D arcade prototype built with LWJGL 3 and JOML. Choose
-Hulk or Iron Man, survive increasingly difficult enemy waves, and record
-high scores using a player name.
+from five heroes, survive increasingly difficult enemy waves, and record high
+scores using a player name.
 
 The game is a procedural prototype: meshes, textures, and sound effects are
 generated at runtime, so no external art assets are required.
@@ -59,9 +59,13 @@ or use the Gradle wrapper if one is added to the project:
 | Delete player-name characters | `Backspace` |
 | Choose Hulk | `1` |
 | Choose Iron Man | `2` |
+| Choose Thor | `3` |
+| Choose Captain America | `4` |
+| Choose Black Widow | `5` |
 | Move | `W`, `A`, `S`, `D` |
 | Look / aim | Mouse |
 | Attack / repulsors | Left mouse button or `J` |
+| Special power | `Q` |
 | Jump | `Space` |
 | Hulk ground pound | `Left Ctrl` while airborne |
 | Iron Man flight toggle | `F` |
@@ -75,11 +79,17 @@ or use the Gradle wrapper if one is added to the project:
 ## Features
 
 - Hulk and Iron Man playable characters
+- Thor, Captain America, and Black Widow playable characters
+- Additional heroes including Hawkeye, Spider-Man, Scarlet Witch, Vision,
+  Black Panther, Ant-Man, Winter Soldier, Doctor Strange, and Captain Marvel
 - Third-person and first-person camera modes
 - Endless enemy waves with increasing difficulty
 - Ground soldiers and hovering drones
 - Hulk smash, double jump, and ground pound
 - Iron Man flight and camera-aimed repulsor bolts
+- Thor lightning strike, Captain America shield throw, and Black Widow rapid
+  dual shots
+- Shared Q-key special powers with per-hero cooldowns and HUD feedback
 - Manual 3D physics with gravity, collisions, overlaps, and raycasts
 - Health, wave, score, enemy-count, crosshair, and damage-flash HUD
 - Persistent top-five scores with player names

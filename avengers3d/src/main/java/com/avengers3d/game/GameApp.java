@@ -14,6 +14,9 @@ import com.avengers3d.render.UIRenderer;
 import com.avengers3d.scene.Character3D;
 import com.avengers3d.scene.Hulk;
 import com.avengers3d.scene.IronMan;
+import com.avengers3d.scene.Thor;
+import com.avengers3d.scene.CaptainAmerica;
+import com.avengers3d.scene.BlackWidow;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
@@ -98,7 +101,8 @@ public final class GameApp implements GameLoop.Game {
     private void startGame(World.Hero hero) {
         world.start(hero);
         if (hero == World.Hero.HULK) camera.configure(2.9f, 3.0f, 10f);
-        else camera.configure(1.9f, 2.0f, 7f);
+        else if (hero == World.Hero.IRON_MAN) camera.configure(1.9f, 2.0f, 7f);
+        else camera.configure(2.1f, 2.2f, 8f);
         camera.setAngles(0f, -0.2f);
         capture(true);
         state = State.PLAYING;
@@ -121,8 +125,8 @@ public final class GameApp implements GameLoop.Game {
         switch (state) {
             case MENU -> {
                 updatePlayerName();
-                if (input.pressed(GLFW_KEY_1)) startGame(World.Hero.HULK);
-                else if (input.pressed(GLFW_KEY_2)) startGame(World.Hero.IRON_MAN);
+                World.Hero selected = selectedHero();
+                if (selected != null) startGame(selected);
                 else if (input.pressed(GLFW_KEY_ESCAPE)) window.requestClose();
             }
             case PLAYING -> playingInput();
@@ -150,6 +154,7 @@ public final class GameApp implements GameLoop.Game {
     private void playingInput() {
         if (input.pressed(GLFW_KEY_ESCAPE)) { state = State.PAUSED; capture(false); return; }
         Character3D p = world.player;
+        if (input.pressed(GLFW_KEY_Q)) world.heroSpecial(camera);
 
         camera.rotate((float) input.mouseDX(), (float) input.mouseDY(), 0.0025f);
         camera.zoom((float) input.scroll());
@@ -169,9 +174,30 @@ public final class GameApp implements GameLoop.Game {
             if (input.pressed(GLFW_KEY_F)) { im.toggleFlight(); audio.play(Sound.JUMP); }
             if (im.isFlying()) im.setVerticalInput(axis(GLFW_KEY_SPACE, GLFW_KEY_LEFT_SHIFT));
             else if (input.pressed(GLFW_KEY_SPACE) && im.jump()) audio.play(Sound.JUMP);
+        } else if (input.pressed(GLFW_KEY_SPACE) && p.grounded) {
+            p.velocity.y = 11f;
+            audio.play(Sound.JUMP);
         }
 
         if (input.mouseDown(GLFW_MOUSE_BUTTON_LEFT) || input.key(GLFW_KEY_J)) world.heroAttack(camera);
+    }
+
+    private World.Hero selectedHero() {
+        if (input.pressed(GLFW_KEY_1)) return World.Hero.HULK;
+        if (input.pressed(GLFW_KEY_2)) return World.Hero.IRON_MAN;
+        if (input.pressed(GLFW_KEY_3)) return World.Hero.THOR;
+        if (input.pressed(GLFW_KEY_4)) return World.Hero.CAPTAIN_AMERICA;
+        if (input.pressed(GLFW_KEY_5)) return World.Hero.BLACK_WIDOW;
+        if (input.pressed(GLFW_KEY_6)) return World.Hero.HAWKEYE;
+        if (input.pressed(GLFW_KEY_7)) return World.Hero.WEB_RUNNER;
+        if (input.pressed(GLFW_KEY_8)) return World.Hero.MYSTIC_WEAVER;
+        if (input.pressed(GLFW_KEY_9)) return World.Hero.VISIONARY;
+        if (input.pressed(GLFW_KEY_0)) return World.Hero.PANTHER;
+        if (input.pressed(GLFW_KEY_A)) return World.Hero.SIZE_SHIFTER;
+        if (input.pressed(GLFW_KEY_B)) return World.Hero.WINTER_SOLDIER;
+        if (input.pressed(GLFW_KEY_C)) return World.Hero.ARCANE_SAGE;
+        if (input.pressed(GLFW_KEY_D)) return World.Hero.SOLAR_VANGUARD;
+        return null;
     }
 
     // ---- simulation -------------------------------------------------------
@@ -236,7 +262,12 @@ public final class GameApp implements GameLoop.Game {
         float frac = Math.max(0f, p.health / p.maxHealth);
         ui.rect(bx - 3, by - 3, bw + 6, bh + 6, 0, 0, 0, 0.6f);
         ui.rect(bx, by, bw * frac, bh, 1f - frac, frac, 0.1f, 1f);        // red -> green by health
-        ui.text(p.displayName() + "   HP " + (int) Math.ceil(p.health), bx, by - 28 * s, 2.5f * s, 1, 1, 1);
+        float[] nameColor = heroColor(p);
+        ui.text(p.displayName(), bx, by - 28 * s, 2.5f * s, nameColor[0], nameColor[1], nameColor[2]);
+        ui.text("   HP " + (int) Math.ceil(p.health),
+                bx + ui.textWidth(p.displayName(), 2.5f * s), by - 28 * s, 2.5f * s, 1, 1, 1);
+        ui.text("SPECIAL [Q]: " + (p.specialCooldown <= 0f ? "READY" : String.format("%.1fs", p.specialCooldown)),
+                bx, by - 84 * s, 2.5f * s, 0.4f, 0.9f, 1);
         if (p instanceof IronMan im && im.isFlying()) ui.text("FLIGHT ON", bx, by - 56 * s, 2.5f * s, 0.5f, 1, 1);
 
         float cx = w / 2f, cy = h / 2f;                                    // crosshair
@@ -248,19 +279,68 @@ public final class GameApp implements GameLoop.Game {
     }
 
     private void drawMenu(float w, float h, float s) {
-        center("MARVEL AVENGERS 3D", h * 0.10f, 6.5f * s, 1, 0.25f, 0.25f, w);
-        center("PLAYER NAME: " + (playerName.isEmpty() ? "_" : playerName) + "  (TYPE / BACKSPACE)", h * 0.18f, 2.8f * s, 0.4f, 0.9f, 1, w);
-        center("CHOOSE YOUR HERO", h * 0.28f, 3.5f * s, 1, 1, 1, w);
-        center("1 - HULK   (SMASH, DOUBLE JUMP, GROUND POUND)", h * 0.37f, 3 * s, 0.4f, 1, 0.4f, w);
-        center("2 - IRON MAN   (REPULSORS, FLIGHT)", h * 0.44f, 3 * s, 1, 0.6f, 0.3f, w);
+        ui.rect(0, 0, w, h, 0.015f, 0.025f, 0.08f, 0.35f);
+        center("MARVEL AVENGERS 3D", h * 0.055f, 6 * s, 1, 0.3f, 0.35f, w);
+        center("ASSEMBLE YOUR HERO", h * 0.135f, 3 * s, 0.65f, 0.85f, 1, w);
 
-        center("WASD MOVE   MOUSE LOOK   SPACE JUMP / ASCEND   LMB OR J ATTACK", h * 0.54f, 2.2f * s, 0.9f, 0.9f, 0.9f, w);
-        center("HULK: CTRL GROUND POUND     IRON MAN: F FLIGHT, SHIFT DESCEND", h * 0.59f, 2.2f * s, 0.9f, 0.9f, 0.9f, w);
-        center("V 1ST / 3RD PERSON    SCROLL ZOOM    ESC PAUSE", h * 0.64f, 2.2f * s, 0.9f, 0.9f, 0.9f, w);
+        float nameY = h * 0.19f;
+        ui.rect(w * 0.25f, nameY - 5 * s, w * 0.5f, 34 * s, 0.04f, 0.12f, 0.22f, 0.9f);
+        center("PLAYER: " + (playerName.isEmpty() ? "_" : playerName) + "   |   TYPE TO EDIT", nameY, 2.4f * s, 0.4f, 0.95f, 1, w);
 
-        center("HIGH SCORES", h * 0.72f, 3 * s, 1, 0.9f, 0.3f, w);
+        float panelY = h * 0.25f, panelH = h * 0.48f;
+        ui.rect(w * 0.06f, panelY, w * 0.41f, panelH, 0.04f, 0.06f, 0.14f, 0.92f);
+        ui.rect(w * 0.53f, panelY, w * 0.41f, panelH, 0.04f, 0.06f, 0.14f, 0.92f);
+        ui.text("HEROES", w * 0.09f, panelY + 25 * s, 2.5f * s, 1, 0.85f, 0.25f);
+        ui.text("HEROES", w * 0.56f, panelY + 25 * s, 2.5f * s, 1, 0.85f, 0.25f);
+
+        menuHero("1  HULK", "SMASH", w * 0.09f, panelY + 62 * s, 0.3f, 1, 0.3f, s);
+        menuHero("2  IRON MAN", "REPULSORS / FLIGHT", w * 0.09f, panelY + 98 * s, 1, 0.55f, 0.15f, s);
+        menuHero("3  THOR", "LIGHTNING", w * 0.09f, panelY + 134 * s, 0.4f, 0.7f, 1, s);
+        menuHero("4  CAPTAIN AMERICA", "SHIELD", w * 0.09f, panelY + 170 * s, 0.25f, 0.55f, 1, s);
+        menuHero("5  BLACK WIDOW", "DUAL SHOTS", w * 0.09f, panelY + 206 * s, 0.95f, 0.25f, 0.35f, s);
+        menuHero("6  HAWKEYE", "PRECISION", w * 0.09f, panelY + 242 * s, 0.75f, 0.35f, 0.9f, s);
+
+        menuHero("7  SPIDER-MAN", "WEB STRIKE", w * 0.56f, panelY + 62 * s, 0.95f, 0.25f, 0.7f, s);
+        menuHero("8  SCARLET WITCH", "MYSTIC BLAST", w * 0.56f, panelY + 98 * s, 0.8f, 0.25f, 1, s);
+        menuHero("9  VISION", "HEAL / ENERGY", w * 0.56f, panelY + 134 * s, 0.95f, 0.95f, 0.65f, s);
+        menuHero("0  BLACK PANTHER", "AMBUSH", w * 0.56f, panelY + 170 * s, 0.55f, 0.55f, 0.65f, s);
+        menuHero("A  ANT-MAN", "HEAVY STRIKE", w * 0.56f, panelY + 206 * s, 0.9f, 0.65f, 0.2f, s);
+        menuHero("B  WINTER SOLDIER", "VOLLEY", w * 0.56f, panelY + 242 * s, 0.35f, 0.65f, 0.95f, s);
+        menuHero("C  DOCTOR STRANGE", "AREA SPELL", w * 0.56f, panelY + 278 * s, 0.55f, 0.25f, 1, s);
+        menuHero("D  CAPTAIN MARVEL", "SOLAR BLAST", w * 0.56f, panelY + 314 * s, 1, 0.45f, 0.1f, s);
+
+        ui.rect(w * 0.06f, h * 0.77f, w * 0.88f, h * 0.17f, 0.04f, 0.06f, 0.14f, 0.92f);
+        center("WASD MOVE   |   MOUSE LOOK   |   SPACE JUMP   |   LMB / J ATTACK   |   Q SPECIAL", h * 0.80f, 2.2f * s, 0.85f, 0.9f, 1, w);
+        center("V CAMERA   |   SCROLL ZOOM   |   ESC PAUSE     HULK: CTRL POUND     IRON MAN: F FLIGHT", h * 0.845f, 2.1f * s, 0.7f, 0.75f, 0.85f, w);
+        center("TOP SCORES", h * 0.895f, 2.2f * s, 1, 0.85f, 0.25f, w);
         int[] top = scores.top();
-        for (int i = 0; i < top.length; i++)
-            center((i + 1) + ".  " + scores.name(i) + "  " + top[i], h * (0.78f + i * 0.04f), 2.4f * s, 1, 1, 1, w);
+        center("TOP: " + scores.name(0) + " " + top[0] + "   " + scores.name(1) + " " + top[1]
+                + "   " + scores.name(2) + " " + top[2], h * 0.915f, 1.6f * s, 1, 1, 1, w);
+    }
+
+    private void menuHero(String name, String power, float x, float y, float r, float g, float b, float s) {
+        ui.text(name, x, y, 2.4f * s, r, g, b);
+        ui.text("  " + power, x + ui.textWidth(name, 2.4f * s) + 10 * s, y,
+                1.65f * s, 0.65f, 0.72f, 0.85f);
+    }
+
+    private void coloredMenuLine(String[] labels, float y, float scale, float width, float[][] colors) {
+        float total = 0f;
+        for (String label : labels) total += ui.textWidth(label, scale);
+        float x = (width - total) / 2f;
+        for (int i = 0; i < labels.length; i++) {
+            float[] color = colors[i];
+            ui.text(labels[i], x, y, scale, color[0], color[1], color[2]);
+            x += ui.textWidth(labels[i], scale);
+        }
+    }
+
+    private float[] heroColor(Character3D hero) {
+        if (hero instanceof Hulk) return new float[]{0.3f, 1f, 0.3f};
+        if (hero instanceof IronMan) return new float[]{1f, 0.55f, 0.15f};
+        if (hero instanceof Thor) return new float[]{0.4f, 0.7f, 1f};
+        if (hero instanceof CaptainAmerica) return new float[]{0.25f, 0.55f, 1f};
+        if (hero instanceof BlackWidow) return new float[]{0.95f, 0.25f, 0.35f};
+        return new float[]{0.8f, 0.8f, 1f};
     }
 }

@@ -9,6 +9,7 @@ public abstract class Character3D extends GameObject3D {
     public float health = 100f, maxHealth = 100f;
     public float invuln;       // seconds of damage immunity after a hit
     public float cooldown;     // seconds until the next attack
+    public float specialCooldown; // seconds until the special power is ready
     public float knockTimer;   // while > 0 the input layer may not override horizontal velocity
     protected float walkSpeed = 6f;
 
@@ -28,6 +29,7 @@ public abstract class Character3D extends GameObject3D {
     protected void tickTimers(float dt) {
         invuln = Math.max(0f, invuln - dt);
         cooldown = Math.max(0f, cooldown - dt);
+        specialCooldown = Math.max(0f, specialCooldown - dt);
         knockTimer = Math.max(0f, knockTimer - dt);
         flash = (invuln > 0f && ((int) (invuln * 16f) & 1) == 0) ? 0.6f : 0f;   // blink while immune
     }

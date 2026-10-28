@@ -34,8 +34,12 @@ ignored by Git.
 | Enter player name | Type on the main menu |
 | Delete name characters | `Backspace` |
 | Choose Hulk / Iron Man | `1` / `2` |
+| Choose Thor | `3` |
+| Choose Captain America | `4` |
+| Choose Black Widow | `5` |
 | Move / look | `WASD` / mouse |
 | Attack | Left mouse button or `J` |
+| Special power | `Q` |
 | Jump | `Space` |
 | Hulk ground pound | `Left Ctrl` while airborne |
 | Iron Man flight | `F` |
@@ -47,7 +51,9 @@ ignored by Git.
 ## Main packages
 
 - `game`: game state, world simulation, enemies, combat, and scoreboard
-- `scene`: transforms, game objects, Hulk, and Iron Man
+- `scene`: transforms, game objects, and the expanded playable hero roster
+  including Spider-Man, Scarlet Witch, Vision, Black Panther, Ant-Man, Doctor
+  Strange, and Captain Marvel
 - `render`: OpenGL renderer, camera, shaders, meshes, and HUD
 - `physics`: collision and raycast helpers
 - `audio`: OpenAL and procedural sound

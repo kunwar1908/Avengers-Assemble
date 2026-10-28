@@ -11,6 +11,10 @@ import com.avengers3d.scene.Character3D;
 import com.avengers3d.scene.GameObject3D;
 import com.avengers3d.scene.Hulk;
 import com.avengers3d.scene.IronMan;
+import com.avengers3d.scene.Thor;
+import com.avengers3d.scene.CaptainAmerica;
+import com.avengers3d.scene.BlackWidow;
+import com.avengers3d.scene.GenericHero;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
@@ -19,19 +23,22 @@ import java.util.Random;
 
 /** Game rules: arena, waves, combat, scoring. Owns every entity; GameApp owns the window/state machine. */
 public final class World {
-    public enum Hero { HULK, IRON_MAN }
+    public enum Hero { HULK, IRON_MAN, THOR, CAPTAIN_AMERICA, BLACK_WIDOW,
+        HAWKEYE, WEB_RUNNER, MYSTIC_WEAVER, VISIONARY, PANTHER, SIZE_SHIFTER,
+        WINTER_SOLDIER, ARCANE_SAGE, SOLAR_VANGUARD }
 
     public Character3D player;
     public int score, wave, kills;
     public float bannerTimer;
     public final List<Enemy> enemies = new ArrayList<>();
+    private final List<CombatEffect> effects = new ArrayList<>();
 
     private final Mesh cube, sphere;
     private final int whiteTex;
     private final AudioManager audio;
     private final List<Block> blocks = new ArrayList<>();
     private final Projectile[] projectiles = new Projectile[48];
-    private final List<GameObject3D> drawList = new ArrayList<>(160);
+    private final List<GameObject3D> drawList = new ArrayList<>(200);
     private final GameObject3D ground;
     private final AABB arena = new AABB().setCenterHalfExtents(0, 20, 0, 29.5f, 20, 29.5f);
 
@@ -72,10 +79,26 @@ public final class World {
 
     // ---- lifecycle --------------------------------------------------------
     public void start(Hero hero) {
-        player = (hero == Hero.HULK) ? new Hulk(cube) : new IronMan(cube);
+        player = switch (hero) {
+            case HULK -> new Hulk(cube);
+            case IRON_MAN -> new IronMan(cube);
+            case THOR -> new Thor(cube);
+            case CAPTAIN_AMERICA -> new CaptainAmerica(cube);
+            case BLACK_WIDOW -> new BlackWidow(cube);
+            case HAWKEYE -> new GenericHero(GenericHero.Kind.HAWKEYE, cube);
+            case WEB_RUNNER -> new GenericHero(GenericHero.Kind.WEB_RUNNER, cube);
+            case MYSTIC_WEAVER -> new GenericHero(GenericHero.Kind.MYSTIC_WEAVER, cube);
+            case VISIONARY -> new GenericHero(GenericHero.Kind.VISIONARY, cube);
+            case PANTHER -> new GenericHero(GenericHero.Kind.PANTHER, cube);
+            case SIZE_SHIFTER -> new GenericHero(GenericHero.Kind.SIZE_SHIFTER, cube);
+            case WINTER_SOLDIER -> new GenericHero(GenericHero.Kind.WINTER_SOLDIER, cube);
+            case ARCANE_SAGE -> new GenericHero(GenericHero.Kind.ARCANE_SAGE, cube);
+            case SOLAR_VANGUARD -> new GenericHero(GenericHero.Kind.SOLAR_VANGUARD, cube);
+        };
         player.textureId = whiteTex;
         player.transform().setPosition(0, 0, 0);
         enemies.clear();
+        effects.clear();
         for (Projectile p : projectiles) p.active = false;
         score = 0; wave = 0; kills = 0; bannerTimer = 0;
         waveInProgress = false;
@@ -92,6 +115,8 @@ public final class World {
     public void update(float dt) {
         if (player == null) return;
         bannerTimer = Math.max(0f, bannerTimer - dt);
+        for (int i = effects.size() - 1; i >= 0; i--)
+            if (!effects.get(i).updateEffect(dt)) effects.remove(i);
 
         // 1) player: intent -> velocity -> integrate -> collide -> clamp
         player.update(dt);
@@ -131,6 +156,7 @@ public final class World {
             for (int i = 0; i < enemies.size() && p.active; i++) {
                 Enemy e = enemies.get(i);
                 if (e.alive && pb.intersects(e.worldBounds())) {
+                    effectAt(p.transform().position(), 0.45f, 0.2f, 0.85f, 1f);
                     damageEnemy(e, p.damage, p.transform().position(), 4f);
                     p.active = false;
                 }
@@ -218,39 +244,136 @@ public final class World {
         audio.play(Sound.SMASH);
     }
 
-    /** Hulk: spherical smash in front of him. Iron Man: repulsor bolt aimed at the crosshair via a camera raycast. */
+    /** Normal attack: melee for brawlers and a camera-aimed projectile for ranged heroes. */
     public void heroAttack(Camera3D cam) {
         if (player == null || player.cooldown > 0f) return;
         Vector3f pp = player.transform().position();
         cam.flatForward(fwd);
         player.faceYaw(cam.yaw());
-
-        if (player instanceof Hulk) {
-            player.cooldown = 0.55f;
-            probe.set(pp.x + fwd.x * 2f, pp.y + 1.6f, pp.z + fwd.z * 2f, 3.4f);
-            for (int i = 0; i < enemies.size(); i++) {
-                Enemy e = enemies.get(i);
-                if (e.alive && Physics3D.sphereVsAabb(probe, e.worldBounds())) damageEnemy(e, 35f, pp, 12f);
-            }
+        effectAt(new Vector3f(pp.x + fwd.x * 0.9f, pp.y + 1.1f, pp.z + fwd.z * 0.9f),
+                0.35f, 0.35f, 0.85f, 1f);
+        if (player instanceof Hulk || player instanceof Thor) {
+            player.cooldown = player instanceof Hulk ? 0.55f : 1.1f;
+            probe.set(pp.x + fwd.x * 2f, pp.y + 1.5f, pp.z + fwd.z * 2f, player instanceof Hulk ? 3.4f : 5.5f);
+            for (Enemy e : enemies)
+                if (e.alive && Physics3D.sphereVsAabb(probe, e.worldBounds()))
+                    damageEnemy(e, player instanceof Hulk ? 35f : 55f, pp, 14f);
             audio.play(Sound.SMASH);
+        } else if (player instanceof CaptainAmerica) {
+            player.cooldown = 0.48f;
+            fireShield(cam, pp, fwd);
         } else {
-            player.cooldown = 0.16f;
-            // Find what the crosshair points at: nearest ray/AABB hit, else a point 60 m down the ray.
-            Vector3f o = cam.eye(), d = cam.forward();
-            float best = 60f;
-            for (int i = 0; i < enemies.size(); i++) {
-                Enemy e = enemies.get(i);
-                if (!e.alive) continue;
-                float t = Physics3D.raycastAabb(o, d, e.worldBounds(), 100f);
-                if (t >= 0f && t < best) best = t;
-            }
-            aim.set(o).fma(best, d);
-            muzzle.set(pp.x + fwd.x * 0.6f, pp.y + 1.4f, pp.z + fwd.z * 0.6f);
-            dir.set(aim).sub(muzzle).normalize();                     // bolt flies muzzle -> aim point
-            for (Projectile p : projectiles)
-                if (!p.active) { p.fire(muzzle, dir, 55f, 12f); break; }
-            audio.play(Sound.SHOOT);
+            player.cooldown = player instanceof BlackWidow ? 0.08f : 0.16f;
+            fireAimedProjectile(cam, pp, fwd, 55f, player instanceof BlackWidow ? 8f : 12f, 0);
         }
+    }
+
+    /** Shared Q-key special powers for the expanded roster. */
+    public void heroSpecial(Camera3D cam) {
+                if (player == null || player.specialCooldown > 0f) return;
+                Vector3f pp = player.transform().position();
+                cam.flatForward(fwd);
+                player.faceYaw(cam.yaw());
+                effectAt(pp, 1.3f, 0.8f, 0.3f, 1f);
+
+                if (player instanceof Hulk) {
+                    player.specialCooldown = 4f;
+                    probe.set(pp.x, pp.y + 0.5f, pp.z, 8f);
+                    for (Enemy e : enemies) if (e.alive && Physics3D.sphereVsAabb(probe, e.worldBounds()))
+                        damageEnemy(e, 70f, pp, 20f);
+                    audio.play(Sound.SMASH);
+                } else if (player instanceof IronMan) {
+                    player.specialCooldown = 3f;
+                    for (int i = 0; i < 5; i++) fireAimedProjectile(cam, pp, fwd, 60f, 18f, i - 2);
+                } else if (player instanceof Thor) {
+                    player.specialCooldown = 4f;
+                    probe.set(pp.x + fwd.x * 3f, pp.y + 1f, pp.z + fwd.z * 3f, 7f);
+                    for (Enemy e : enemies) if (e.alive && Physics3D.sphereVsAabb(probe, e.worldBounds()))
+                        damageEnemy(e, 90f, pp, 24f);
+                    audio.play(Sound.SMASH);
+                } else if (player instanceof CaptainAmerica) {
+                    player.specialCooldown = 3f;
+                    probe.set(pp.x + fwd.x * 5f, pp.y + 1f, pp.z + fwd.z * 5f, 4f);
+                    for (Enemy e : enemies) if (e.alive && Physics3D.sphereVsAabb(probe, e.worldBounds()))
+                        damageEnemy(e, 75f, pp, 20f);
+                    audio.play(Sound.HIT);
+                } else if (player instanceof BlackWidow) {
+                    player.specialCooldown = 2.5f;
+                    for (int i = 0; i < 8; i++) fireAimedProjectile(cam, pp, fwd, 70f, 14f, i - 4);
+                } else if (player instanceof GenericHero hero) {
+                    player.specialCooldown = switch (hero.kind()) {
+                        case HAWKEYE, WINTER_SOLDIER -> 2.5f;
+                        case WEB_RUNNER, PANTHER -> 3f;
+                        case MYSTIC_WEAVER, ARCANE_SAGE -> 4f;
+                        case VISIONARY -> 3.5f;
+                        case SIZE_SHIFTER -> 4f;
+                        case SOLAR_VANGUARD -> 5f;
+                    };
+                    switch (hero.kind()) {
+                        case HAWKEYE, WINTER_SOLDIER -> {
+                            for (int i = 0; i < 4; i++) fireAimedProjectile(cam, pp, fwd, 70f, 22f, i - 2);
+                        }
+                        case WEB_RUNNER, PANTHER -> {
+                            probe.set(pp.x + fwd.x * 3f, pp.y + 1f, pp.z + fwd.z * 3f, 5f);
+                            for (Enemy e : enemies) if (e.alive && Physics3D.sphereVsAabb(probe, e.worldBounds()))
+                                damageEnemy(e, 65f, pp, 22f);
+                        }
+                        case MYSTIC_WEAVER, ARCANE_SAGE -> {
+                            probe.set(pp.x, pp.y + 1f, pp.z, 8f);
+                            for (Enemy e : enemies) if (e.alive && Physics3D.sphereVsAabb(probe, e.worldBounds()))
+                                damageEnemy(e, 80f, pp, 16f);
+                        }
+                        case VISIONARY -> {
+                            player.heal(30f);
+                            for (int i = 0; i < 3; i++) fireAimedProjectile(cam, pp, fwd, 60f, 20f, i - 1);
+                        }
+                        case SIZE_SHIFTER -> {
+                            player.heal(20f);
+                            probe.set(pp.x, pp.y + 1f, pp.z, 4f);
+                            for (Enemy e : enemies) if (e.alive && Physics3D.sphereVsAabb(probe, e.worldBounds()))
+                                damageEnemy(e, 100f, pp, 28f);
+                        }
+                        case SOLAR_VANGUARD -> {
+                            player.heal(45f);
+                            probe.set(pp.x, pp.y + 1f, pp.z, 9f);
+                            for (Enemy e : enemies) if (e.alive && Physics3D.sphereVsAabb(probe, e.worldBounds()))
+                                damageEnemy(e, 110f, pp, 30f);
+                        }
+                    }
+                }
+                audio.play(Sound.SHOOT);
+            }
+
+    private void fireAimedProjectile(Camera3D cam, Vector3f pp, Vector3f forward, float speed,
+                                     float damage, int spreadIndex) {
+        aim.set(cam.eye()).fma(60f, cam.forward());
+        muzzle.set(pp.x + forward.x * 0.7f, pp.y + 1.2f, pp.z + forward.z * 0.7f);
+        dir.set(aim).sub(muzzle).normalize();
+        dir.x += spreadIndex * 0.025f;
+        dir.z += spreadIndex * 0.012f;
+        dir.normalize();
+        fireProjectile(dir, muzzle, speed, damage);
+    }
+
+    private void fireShield(Camera3D cam, Vector3f pp, Vector3f forward) {
+        Vector3f o = cam.eye(), d = cam.forward();
+        aim.set(o).fma(60f, d);
+        muzzle.set(pp.x + forward.x * 0.8f, pp.y + 1.2f, pp.z + forward.z * 0.8f);
+        dir.set(aim).sub(muzzle).normalize();
+        fireProjectile(dir, muzzle, 45f, 32f);
+        audio.play(Sound.SHOOT);
+    }
+
+    private void fireProjectile(Vector3f direction, Vector3f origin, float speed, float damage) {
+        for (Projectile p : projectiles)
+            if (!p.active) { p.fire(origin, direction, speed, damage); break; }
+        audio.play(Sound.SHOOT);
+    }
+
+    private void effectAt(Vector3f position, float radius, float r, float g, float b) {
+        CombatEffect effect = new CombatEffect(sphere, whiteTex, radius, r, g, b, 0.22f);
+        effect.transform().setPosition(position.x, position.y, position.z);
+        effects.add(effect);
     }
 
     // ---- rendering support -----------------------------------------------
@@ -262,6 +385,7 @@ public final class World {
         if (player != null) drawList.add(player);
         drawList.addAll(enemies);
         for (Projectile p : projectiles) if (p.active) drawList.add(p);
+        drawList.addAll(effects);
         return drawList;
     }
 }
