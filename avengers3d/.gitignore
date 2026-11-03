@@ -1,0 +1,8 @@
+build/
+.gradle/
+*.class
+savegame.properties
+scores.txt
+.idea/
+.vscode/
+out/

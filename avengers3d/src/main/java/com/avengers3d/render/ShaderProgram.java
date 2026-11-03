@@ -32,6 +32,18 @@ public final class ShaderProgram implements AutoCloseable {
         glDeleteShader(fs);
     }
 
+    /** Load GLSL from the classpath (src/main/resources/shaders/NAME.vert|frag). */
+    public static ShaderProgram load(String vertName, String fragName) {
+        return new ShaderProgram(read("/shaders/" + vertName), read("/shaders/" + fragName));
+    }
+
+    private static String read(String path) {
+        try (var in = ShaderProgram.class.getResourceAsStream(path)) {
+            if (in == null) throw new IllegalStateException("Missing shader resource: " + path);
+            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (IOException e) { throw new UncheckedIOException(e); }
+    }
+
     private static int compile(int type, String src) {
         int id = glCreateShader(type);
         glShaderSource(id, src);
@@ -41,27 +53,14 @@ public final class ShaderProgram implements AutoCloseable {
         return id;
     }
 
-    /** Load GLSL from the classpath (src/main/resources). */
-    public static ShaderProgram fromResources(String vertPath, String fragPath) {
-        try (var v = ShaderProgram.class.getResourceAsStream(vertPath);
-             var f = ShaderProgram.class.getResourceAsStream(fragPath)) {
-            if (v == null || f == null)
-                throw new IllegalStateException("Missing shader resource: " + vertPath + " / " + fragPath);
-            return new ShaderProgram(new String(v.readAllBytes(), StandardCharsets.UTF_8),
-                                     new String(f.readAllBytes(), StandardCharsets.UTF_8));
-        } catch (IOException e) { throw new UncheckedIOException(e); }
-    }
-
     public void bind() { glUseProgram(program); }
 
-    private int loc(String name) {
-        return uniforms.computeIfAbsent(name, n -> glGetUniformLocation(program, n));
-    }
+    private int loc(String name) { return uniforms.computeIfAbsent(name, n -> glGetUniformLocation(program, n)); }
 
     public void setMat4(String name, Matrix4f m) {
-        try (MemoryStack stack = MemoryStack.stackPush()) {   // stack memory: no heap garbage
+        try (MemoryStack stack = MemoryStack.stackPush()) {
             FloatBuffer fb = stack.mallocFloat(16);
-            glUniformMatrix4fv(loc(name), false, m.get(fb));  // JOML is column-major, same as GL
+            glUniformMatrix4fv(loc(name), false, m.get(fb));
         }
     }
     public void setMat3(String name, Matrix3f m) {
@@ -72,7 +71,9 @@ public final class ShaderProgram implements AutoCloseable {
     }
     public void setVec3(String name, Vector3f v) { glUniform3f(loc(name), v.x, v.y, v.z); }
     public void setVec3(String name, float x, float y, float z) { glUniform3f(loc(name), x, y, z); }
+    public void setVec3(String name, float[] v) { glUniform3f(loc(name), v[0], v[1], v[2]); }
     public void setVec2(String name, float x, float y) { glUniform2f(loc(name), x, y); }
+    public void setVec4(String name, float x, float y, float z, float w) { glUniform4f(loc(name), x, y, z, w); }
     public void setFloat(String name, float v) { glUniform1f(loc(name), v); }
     public void setInt(String name, int v) { glUniform1i(loc(name), v); }
 

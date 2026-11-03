@@ -18,7 +18,7 @@ import static org.lwjgl.opengl.GL30.*;
  * Coordinates are pixels with the origin at the top-left.
  */
 public final class UIRenderer implements AutoCloseable {
-    private static final int MAX_QUADS = 4096;
+    private static final int MAX_QUADS = 20000;
     private static final String VS = """
         #version 330 core
         layout(location = 0) in vec3 aPos;

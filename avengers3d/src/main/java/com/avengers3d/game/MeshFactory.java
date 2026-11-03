@@ -2,7 +2,10 @@ package com.avengers3d.game;
 
 import com.avengers3d.render.MeshData;
 
-/** Procedural primitives, so the game runs with zero model files. Swap in OBJ meshes via AssetManager later. */
+import java.util.ArrayList;
+import java.util.List;
+
+/** Procedural primitives, so the game runs with zero model files. All meshes are counter-clockwise outward. */
 public final class MeshFactory {
     private MeshFactory() { }
 
@@ -14,11 +17,7 @@ public final class MeshFactory {
         return new float[]{a[0] / l, a[1] / l, a[2] / l};
     }
 
-    /**
-     * Unit cube (edge 1) centred on the origin. For each face normal n we pick tangents u, v with
-     * u x v = n, then emit corners in (-,-) (+,-) (+,+) (-,+) order, which is counter-clockwise
-     * when seen from outside, so back-face culling keeps the visible side.
-     */
+    /** Unit cube (edge 1) centred on the origin. */
     public static MeshData cube() {
         float[][] normals = {{0, 0, 1}, {0, 0, -1}, {1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}};
         float[][] corner = {{-1, -1}, {1, -1}, {1, 1}, {-1, 1}};
@@ -29,24 +28,22 @@ public final class MeshFactory {
             float[] n = normals[f];
             float[] helper = Math.abs(n[1]) < 0.9f ? new float[]{0, 1, 0} : new float[]{1, 0, 0};
             float[] u = norm(cross(helper, n));
-            float[] v = cross(n, u);
+            float[] v = cross(n, u);                         // u x v = n  ->  corners below are CCW seen from outside
             for (int c = 0; c < 4; c++) {
                 int vi = f * 4 + c;
                 for (int k = 0; k < 3; k++) {
                     pos[vi * 3 + k] = 0.5f * (n[k] + corner[c][0] * u[k] + corner[c][1] * v[k]);
                     nor[vi * 3 + k] = n[k];
                 }
-                uv[vi * 2] = cuv[c][0];
-                uv[vi * 2 + 1] = cuv[c][1];
+                uv[vi * 2] = cuv[c][0]; uv[vi * 2 + 1] = cuv[c][1];
             }
             int b = f * 4, i = f * 6;
-            idx[i] = b; idx[i + 1] = b + 1; idx[i + 2] = b + 2;
-            idx[i + 3] = b; idx[i + 4] = b + 2; idx[i + 5] = b + 3;
+            idx[i] = b; idx[i + 1] = b + 1; idx[i + 2] = b + 2; idx[i + 3] = b; idx[i + 4] = b + 2; idx[i + 5] = b + 3;
         }
         return new MeshData(pos, uv, nor, idx);
     }
 
-    /** Unit-diameter UV sphere: x = sin(t)cos(p), y = cos(t), z = sin(t)sin(p). The normal equals the position. */
+    /** Unit-diameter UV sphere. */
     public static MeshData sphere(int stacks, int slices) {
         int vc = (stacks + 1) * (slices + 1);
         float[] pos = new float[vc * 3], uv = new float[vc * 2], nor = new float[vc * 3];
@@ -73,11 +70,62 @@ public final class MeshFactory {
         return new MeshData(pos, uv, nor, idx);
     }
 
-    /** Flat square on y = 0, spanning [-half, half]; UVs tile {@code uvRepeat} times (texture wrap = REPEAT). */
-    public static MeshData plane(float half, float uvRepeat) {
-        float[] pos = {-half, 0, -half, -half, 0, half, half, 0, half, half, 0, -half};
-        float[] nor = {0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0};
-        float[] uv = {0, 0, 0, uvRepeat, uvRepeat, uvRepeat, uvRepeat, 0};
-        return new MeshData(pos, uv, nor, new int[]{0, 1, 2, 0, 2, 3});
+    private static final class Builder {
+        final List<Float> p = new ArrayList<>(), t = new ArrayList<>(), n = new ArrayList<>();
+        final List<Integer> idx = new ArrayList<>();
+        int vert(float x, float y, float z, float nx, float ny, float nz, float u, float v) {
+            p.add(x); p.add(y); p.add(z); n.add(nx); n.add(ny); n.add(nz); t.add(u); t.add(v);
+            return p.size() / 3 - 1;
+        }
+        void tri(int a, int b, int c) { idx.add(a); idx.add(b); idx.add(c); }
+        MeshData build() {
+            float[] pp = new float[p.size()], tt = new float[t.size()], nn = new float[n.size()];
+            for (int i = 0; i < pp.length; i++) pp[i] = p.get(i);
+            for (int i = 0; i < tt.length; i++) tt[i] = t.get(i);
+            for (int i = 0; i < nn.length; i++) nn[i] = n.get(i);
+            return new MeshData(pp, tt, nn, idx.stream().mapToInt(Integer::intValue).toArray());
+        }
+    }
+
+    /** Cylinder: radius 0.5, height 1, axis = Y, centred on the origin. */
+    public static MeshData cylinder(int seg) {
+        Builder b = new Builder();
+        for (int i = 0; i < seg; i++) {
+            double a0 = 2 * Math.PI * i / seg, a1 = 2 * Math.PI * (i + 1) / seg;
+            float c0 = (float) Math.cos(a0), s0 = (float) Math.sin(a0), c1 = (float) Math.cos(a1), s1 = (float) Math.sin(a1);
+            int top0 = b.vert(.5f * c0, .5f, .5f * s0, c0, 0, s0, (float) i / seg, 1);
+            int bot0 = b.vert(.5f * c0, -.5f, .5f * s0, c0, 0, s0, (float) i / seg, 0);
+            int top1 = b.vert(.5f * c1, .5f, .5f * s1, c1, 0, s1, (float) (i + 1) / seg, 1);
+            int bot1 = b.vert(.5f * c1, -.5f, .5f * s1, c1, 0, s1, (float) (i + 1) / seg, 0);
+            b.tri(top0, top1, bot0); b.tri(top1, bot1, bot0);
+            int tc = b.vert(0, .5f, 0, 0, 1, 0, .5f, .5f);
+            int t0 = b.vert(.5f * c0, .5f, .5f * s0, 0, 1, 0, .5f + .5f * c0, .5f + .5f * s0);
+            int t1 = b.vert(.5f * c1, .5f, .5f * s1, 0, 1, 0, .5f + .5f * c1, .5f + .5f * s1);
+            b.tri(tc, t1, t0);                                    // top cap, CCW seen from above
+            int bc = b.vert(0, -.5f, 0, 0, -1, 0, .5f, .5f);
+            int b0 = b.vert(.5f * c0, -.5f, .5f * s0, 0, -1, 0, .5f + .5f * c0, .5f + .5f * s0);
+            int b1 = b.vert(.5f * c1, -.5f, .5f * s1, 0, -1, 0, .5f + .5f * c1, .5f + .5f * s1);
+            b.tri(bc, b0, b1);                                    // bottom cap, CCW seen from below
+        }
+        return b.build();
+    }
+
+    /** Cone: base radius 0.5 at y = -0.5, apex at y = +0.5. */
+    public static MeshData cone(int seg) {
+        Builder b = new Builder();
+        for (int i = 0; i < seg; i++) {
+            double a0 = 2 * Math.PI * i / seg, a1 = 2 * Math.PI * (i + 1) / seg, am = (a0 + a1) / 2;
+            float c0 = (float) Math.cos(a0), s0 = (float) Math.sin(a0), c1 = (float) Math.cos(a1), s1 = (float) Math.sin(a1);
+            float nx = (float) Math.cos(am) * .894f, nz = (float) Math.sin(am) * .894f, ny = .447f;   // slope normal for h = 2r
+            int base0 = b.vert(.5f * c0, -.5f, .5f * s0, nx, ny, nz, 0, 0);
+            int base1 = b.vert(.5f * c1, -.5f, .5f * s1, nx, ny, nz, 1, 0);
+            int apex = b.vert(0, .5f, 0, nx, ny, nz, .5f, 1);
+            b.tri(base0, apex, base1);
+            int bc = b.vert(0, -.5f, 0, 0, -1, 0, .5f, .5f);
+            int q0 = b.vert(.5f * c0, -.5f, .5f * s0, 0, -1, 0, .5f + .5f * c0, .5f + .5f * s0);
+            int q1 = b.vert(.5f * c1, -.5f, .5f * s1, 0, -1, 0, .5f + .5f * c1, .5f + .5f * s1);
+            b.tri(bc, q0, q1);
+        }
+        return b.build();
     }
 }

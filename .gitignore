@@ -14,6 +14,8 @@ out/
 bin/
 
 # Runtime-generated game data
+savegame.properties
+**/savegame.properties
 scores.txt
 **/scores.txt
 jme-scores.txt
@@ -24,6 +26,7 @@ jme-scores.txt
 *.iml
 *.ipr
 *.iws
+*.txt
 *.code-workspace
 .vscode/*
 !.vscode/extensions.json

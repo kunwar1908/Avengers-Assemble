@@ -24,7 +24,7 @@ public final class Synth {
                 case NOISE -> RNG.nextFloat() * 2f - 1f;
             };
             float env = (1f - t) * (1f - t);
-            if (i < 100) env *= i / 100f;                      // 4.5 ms fade-in removes the start click
+            if (i < 100) env *= i / 100f;
             out[i] = clip(s * env * vol);
         }
         return out;
@@ -39,25 +39,36 @@ public final class Synth {
         return out;
     }
 
-    /** ~3.5 s looping minor-key arpeggio with a bass note every 4 steps. */
-    public static short[] music() {
-        float[] arp = {220f, 261.63f, 329.63f, 392f, 220f, 261.63f, 329.63f, 392f,
-                       196f, 246.94f, 293.66f, 392f, 174.61f, 220f, 261.63f, 349.23f};
-        int stepN = (int) (RATE * 0.22f);
+    /** Play several tones one after another (jingles). */
+    public static short[] seq(float[] freqs, float noteDur, float vol, Wave wave) {
+        int per = (int) (RATE * noteDur);
+        short[] out = new short[per * freqs.length];
+        for (int i = 0; i < freqs.length; i++) System.arraycopy(tone(freqs[i], freqs[i], noteDur, vol, wave), 0, out, i * per, per);
+        return out;
+    }
+
+    /**
+     * Looping arpeggio. {@code step} seconds per note; {@code squareMix} 0..1 adds buzz; {@code kick} adds a thump on every 2nd step.
+     * A bass note an octave down is held on every 4th step.
+     */
+    public static short[] music(float[] arp, float step, float squareMix, boolean kick, float vol) {
+        int stepN = (int) (RATE * step);
         float[] mix = new float[stepN * arp.length];
         for (int s = 0; s < arp.length; s++) {
             for (int i = 0; i < stepN; i++) {
                 float t = i / (float) stepN;
                 double ph = 2 * Math.PI * arp[s] * i / RATE;
-                float tone = (float) Math.sin(ph) * 0.6f + (Math.sin(ph) >= 0 ? 0.4f : -0.4f) * 0.4f;
-                mix[s * stepN + i] += tone * (float) Math.pow(1f - t, 1.5) * 0.25f;
+                float sine = (float) Math.sin(ph), sq = sine >= 0 ? .4f : -.4f;
+                mix[s * stepN + i] += (sine * (1f - squareMix) + sq * squareMix) * (float) Math.pow(1f - t, 1.5) * .26f * vol;
             }
-            if (s % 4 == 0) {
-                for (int i = 0; i < stepN * 4 && s * stepN + i < mix.length; i++) {
-                    float env = 1f - i / (4f * stepN);
-                    mix[s * stepN + i] += 0.3f * env * (float) Math.sin(2 * Math.PI * (arp[s] / 2f) * i / RATE);
+            if (s % 4 == 0)
+                for (int i = 0; i < stepN * 4 && s * stepN + i < mix.length; i++)
+                    mix[s * stepN + i] += .3f * vol * (1f - i / (4f * stepN)) * (float) Math.sin(2 * Math.PI * (arp[s] / 2f) * i / RATE);
+            if (kick && s % 2 == 0)
+                for (int i = 0; i < stepN / 2; i++) {
+                    float t = i / (stepN / 2f);
+                    mix[s * stepN + i] += .5f * vol * (1f - t) * (float) Math.sin(2 * Math.PI * (60f - 25f * t) * i / RATE);
                 }
-            }
         }
         short[] out = new short[mix.length];
         for (int i = 0; i < out.length; i++) out[i] = clip(mix[i]);

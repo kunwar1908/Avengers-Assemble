@@ -2,25 +2,25 @@ package com.avengers3d.scene;
 
 import org.joml.Vector3f;
 
-/** Shared hero behaviour: movement intent, health, damage cooldown and facing. */
+/** Shared state for heroes: movement intent, health, timers. Concrete behaviour lives in game.Hero. */
 public abstract class Character3D extends GameObject3D {
-    /** Desired movement in world space, set each frame by the input layer (length <= 1). */
     public final Vector3f moveInput = new Vector3f();
     public float health = 100f, maxHealth = 100f;
-    public float invuln;       // seconds of damage immunity after a hit
-    public float cooldown;     // seconds until the next attack
-    public float specialCooldown; // seconds until the special power is ready
-    public float knockTimer;   // while > 0 the input layer may not override horizontal velocity
-    protected float walkSpeed = 6f;
+    public float invuln;          // post-hit grace (blinks)
+    public float iFrames;         // dodge/dash immunity (no blink)
+    public float knockTimer;      // while > 0 the player cannot steer horizontally
+    public float cooldown, specialCooldown, dodgeCooldown;
+    public boolean dead;
 
     public abstract String displayName();
 
-    /** @return true if damage was actually applied (not immune, not already dead). */
+    /** @return true if damage was applied. */
     public boolean damage(float amount) {
-        if (invuln > 0f || health <= 0f) return false;
+        if (dead || invuln > 0f || iFrames > 0f) return false;
         health = Math.max(0f, health - amount);
-        invuln = 0.8f;
-        knockTimer = 0.25f;
+        invuln = 0.7f;
+        knockTimer = 0.2f;
+        if (health <= 0f) dead = true;
         return true;
     }
 
@@ -28,16 +28,18 @@ public abstract class Character3D extends GameObject3D {
 
     protected void tickTimers(float dt) {
         invuln = Math.max(0f, invuln - dt);
+        iFrames = Math.max(0f, iFrames - dt);
+        knockTimer = Math.max(0f, knockTimer - dt);
         cooldown = Math.max(0f, cooldown - dt);
         specialCooldown = Math.max(0f, specialCooldown - dt);
-        knockTimer = Math.max(0f, knockTimer - dt);
-        flash = (invuln > 0f && ((int) (invuln * 16f) & 1) == 0) ? 0.6f : 0f;   // blink while immune
+        dodgeCooldown = Math.max(0f, dodgeCooldown - dt);
+        flash = (invuln > 0f && ((int) (invuln * 18f) & 1) == 0) ? 0.5f : 0f;
     }
 
-    protected void faceMoveDirection() {
-        if (moveInput.x * moveInput.x + moveInput.z * moveInput.z > 1e-4f)
-            transform.setYaw((float) Math.atan2(moveInput.x, moveInput.z));    // heading about +Y
+    /** Turn {@code cur} toward {@code target} along the shortest arc by at most {@code maxDelta} radians. */
+    public static float approachAngle(float cur, float target, float maxDelta) {
+        float d = (float) Math.atan2(Math.sin(target - cur), Math.cos(target - cur));
+        if (Math.abs(d) <= maxDelta) return target;
+        return cur + Math.signum(d) * maxDelta;
     }
-
-    public void faceYaw(float yaw) { transform.setYaw(yaw); }
 }

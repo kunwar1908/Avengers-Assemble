@@ -27,7 +27,7 @@ public final class Window implements AutoCloseable {
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
         glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);   // required on macOS
-        glfwWindowHint(GLFW_SAMPLES, 4);                          // 4x MSAA
+        glfwWindowHint(GLFW_SAMPLES, 0);                          // MSAA is done in our own HDR framebuffer
 
         handle = glfwCreateWindow(w, h, title, NULL, NULL);
         if (handle == NULL) throw new IllegalStateException("Failed to create the window");

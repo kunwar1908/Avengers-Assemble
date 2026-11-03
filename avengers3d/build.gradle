@@ -9,7 +9,7 @@ repositories { mavenCentral() }
 def lwjglVersion = '3.3.4'
 def jomlVersion  = '1.10.6'
 
-// Pick the native LWJGL binaries for the OS/CPU we are running on.
+// Native LWJGL binaries for the OS/CPU we are running on.
 def os   = OperatingSystem.current()
 def arch = System.getProperty('os.arch')
 def lwjglNatives
@@ -24,12 +24,19 @@ dependencies {
         runtimeOnly    "org.lwjgl:$it::$lwjglNatives"
     }
     implementation "org.joml:joml:$jomlVersion"
-    // FBX support later: implementation "org.lwjgl:lwjgl-assimp" + its natives
+
+    testImplementation platform('org.junit:junit-bom:5.10.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation "org.joml:joml:$jomlVersion"
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+// Compile for Java 17 with ANY installed JDK 17+ (no toolchain download needed).
 java {
-    toolchain { languageVersion = JavaLanguageVersion.of(17) }
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
 }
+tasks.withType(JavaCompile).configureEach { options.release = 17 }
 
 application {
     mainClass = 'com.avengers3d.Main'
@@ -38,5 +45,5 @@ application {
     applicationDefaultJvmArgs = jvm
 }
 
-// scores.txt is written to the working directory
-tasks.named('run') { workingDir = rootProject.projectDir }
+tasks.named('run') { workingDir = rootProject.projectDir }   // savegame.properties is written here
+tasks.named('test') { useJUnitPlatform() }
