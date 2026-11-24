@@ -34,21 +34,20 @@ that installed JDK.
 
 ## Run
 
-Open PowerShell in the Java project directory:
+From the repository root, run:
 
 ```powershell
-cd "avengers3d"
-gradle run
+gradle -p .\avengers3d run
 ```
 
 The game writes runtime scores to `scores.txt`. This file is intentionally
 ignored by Git.
 
-If Gradle is not on `PATH`, run the project with a local Gradle installation
-or use the Gradle wrapper if one is added to the project:
+If Gradle is not on `PATH`, use a local Gradle installation or add a Gradle
+wrapper to the `avengers3d` project and run it with:
 
 ```powershell
-.\gradlew.bat run
+.\avengers3d\gradlew.bat -p .\avengers3d run
 ```
 
 ## Controls
@@ -115,18 +114,23 @@ src/main/java/com/avengers3d/
 Compile without launching the window:
 
 ```powershell
-gradle compileJava
+gradle -p .\avengers3d compileJava
 ```
 
 Run the application:
 
 ```powershell
-gradle run
+gradle -p .\avengers3d run
 ```
 
-The project has no automated test suite yet. A successful `compileJava` task
-checks Java compilation; `run` additionally verifies GLFW, OpenGL, and OpenAL
-initialization on the local machine.
+Run the automated tests with:
+
+```powershell
+gradle -p .\avengers3d test
+```
+
+`compileJava` checks Java compilation; `run` additionally verifies GLFW,
+OpenGL, and OpenAL initialization on the local machine.
 
 ## Troubleshooting
 
@@ -135,7 +139,7 @@ initialization on the local machine.
 Install Gradle or add it to `PATH`. Alternatively, use the Gradle wrapper:
 
 ```powershell
-.\gradlew.bat run
+.\avengers3d\gradlew.bat -p .\avengers3d run
 ```
 
 ### Java toolchain 17 cannot be found
