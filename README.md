@@ -16,6 +16,7 @@ avengers3d/
 │   ├── src/main/resources/  # GLSL shaders
 │   ├── build.gradle
 │   └── README.md            # Detailed project documentation
+├── docs/images/             # MySQL setup and persistence screenshots
 ├── .gitignore
 └── avengers3d.code-workspace
 ```
@@ -46,8 +47,19 @@ From the repository root, run:
 gradle -p .\avengers3d run
 ```
 
-The game writes runtime scores to `scores.txt`. This file is intentionally
-ignored by Git.
+Player progress and the leaderboard are stored in MySQL. See
+[`avengers3d/README.md`](./avengers3d/README.md#mysql-setup) for database setup
+and connection instructions.
+
+## MySQL persistence
+
+The game stores player progress in `game_save` and arena scores in `leaderboard`
+inside the `avengers3d` database. The screenshots below show a saved player and
+score, followed by the database tables and their columns.
+
+![MySQL game_save and leaderboard rows](./docs/images/mysql-persisted-data.png)
+
+![avengers3d database and table schemas in MySQL](./docs/images/mysql-schema.png)
 
 If Gradle is not on `PATH`, use a local Gradle installation or add a Gradle
 wrapper to the `avengers3d` project and run it with:

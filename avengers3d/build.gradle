@@ -22,6 +22,7 @@ dependencies {
         runtimeOnly    "org.lwjgl:$it::$lwjglNatives"
     }
     implementation "org.joml:joml:$jomlVersion"
+    runtimeOnly 'com.mysql:mysql-connector-j:8.4.0'
 
     testImplementation platform('org.junit:junit-bom:5.10.2')
     testImplementation 'org.junit.jupiter:junit-jupiter'

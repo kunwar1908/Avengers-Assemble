@@ -7,7 +7,32 @@ texture or sound files.
 ## Run
     gradle wrapper        # once, to create gradlew (optional)
     gradle run            # needs JDK 17+; downloads LWJGL on first run
-macOS: the build already passes `-XstartOnFirstThread`. Saves go to `savegame.properties` in the project folder.
+macOS: the build already passes `-XstartOnFirstThread`. Player progress and the top-five scoreboard are stored in MySQL.
+
+## MySQL setup
+Install and start MySQL, then create the database and tables from the repository root:
+
+```powershell
+cmd.exe /c 'mysql -u root -p < .\avengers3d\sql\setup.sql'
+```
+
+Create a dedicated application account in the MySQL client (choose your own password):
+
+```sql
+CREATE USER 'avengers_app'@'localhost' IDENTIFIED BY 'choose-a-password';
+GRANT SELECT, INSERT, UPDATE, DELETE ON avengers3d.* TO 'avengers_app'@'localhost';
+```
+
+In the same PowerShell window used to run the game, set the connection environment:
+
+```powershell
+$env:AVENGERS_DB_URL = "jdbc:mysql://localhost:3306/avengers3d?serverTimezone=UTC"
+$env:AVENGERS_DB_USER = "avengers_app"
+$env:AVENGERS_DB_PASSWORD = "your-chosen-password"
+gradle -p .\avengers3d run
+```
+
+The URL defaults to the local value shown above; `AVENGERS_DB_URL` can override it for another MySQL host. Keep credentials out of source control. The MySQL Connector/J driver is fetched by Gradle. Database connection and query errors are reported when the game starts or saves data.
 
 ## Controls
 | Action | Key |
