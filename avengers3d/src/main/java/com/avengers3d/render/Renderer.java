@@ -10,6 +10,7 @@ import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL13.*;
 
 /** Forward renderer: shadow pass, sky, lit scene pass. Per-part matrices come from GameObject3D.updateParts(). */
+@SuppressWarnings("unused")
 public final class Renderer implements AutoCloseable {
     private final ShaderProgram scene = ShaderProgram.load("scene.vert", "scene.frag");
     private final ShaderProgram depth = ShaderProgram.load("depth.vert", "depth.frag");
